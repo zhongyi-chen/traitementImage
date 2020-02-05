@@ -49,8 +49,6 @@ backward(int rows, int cols, fftw_complex* freq_repr)
   // normalize
   for(int i =0;i<size;i++){
     g_img[i]= creal(out[i])/size;
-    printf("g_img %hu\n",g_img[i]);
-    printf("real nm %f\n", creal(out[i]));
   }
   
   free(out);
@@ -61,19 +59,43 @@ backward(int rows, int cols, fftw_complex* freq_repr)
 void
 freq2spectra(int rows, int cols, fftw_complex* freq_repr, float* as, float* ps) 
 {
-  (void)rows;
-  (void)cols;
-  (void)freq_repr;
-  (void)as;
-  (void)ps;
+  
+  // for (int i = 0; i < rows; i++)
+  // {
+  //   for (int j = 0; j < cols; j++)
+  //   {
+  //     as[i*cols+j] = cabs(freq_repr[i]);
+  //     ps[i*cols+j] = carg(freq_repr[i*cols+j]);
+  //   }
+  // }
+
+  int size = rows *cols;
+
+  for (int i = 0; i < size; i++)
+  {
+    as[i] = cabs(freq_repr[i]);
+    ps[i] = cargf(freq_repr[i]);
+  }
+  
+
+  
 }
 
-void 
-spectra2freq(int rows, int cols, float* as, float* ps, fftw_complex* freq_repr)
+void spectra2freq(int rows, int cols, float *as, float *ps, fftw_complex *freq_repr)
 {
-  (void)rows;
-  (void)cols;
-  (void)as;
-  (void)ps;
-  (void)freq_repr;
+  // for (int i = 0; i < rows; i++)
+  // {
+  //   for (int j = 0; j < cols; j++)
+  //   {
+  //     freq_repr[i*cols +j] = as[i*cols+j] * cexp(I * ps[i*cols +j]);
+  //   }
+
+  // }
+
+  int size = rows * cols;
+
+  for (int i = 0; i < size; i++)
+  {
+    freq_repr[i] = as[i] * cexpf(I*ps[i]);
+  }
 }
