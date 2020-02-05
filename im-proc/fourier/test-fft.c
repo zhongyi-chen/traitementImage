@@ -12,20 +12,31 @@
  * @brief test the forward and backward functions
  * @param char* name, the input image file name
  */
-void
-test_forward_backward(char* name)
+void test_forward_backward(char *name)
 {
-  fprintf(stderr, "test_forward_backward: ");
-  (void)name;
-  fprintf(stderr, "OK\n");
+  pnm ims = pnm_load(name);
+  int rows = pnm_get_height(ims);
+  int cols = pnm_get_width(ims);
+  unsigned short *data = pnm_get_channel(ims, NULL, PnmRed);
+  
+  fftw_complex *freq_repr = forward(rows, cols, data);
+  unsigned short *g_img = backward(rows,cols,freq_repr);
+
+  pnm imd = pnm_new(cols,rows,PnmRawPpm);
+  for (unsigned int i = PnmRed; i <=PnmBlue; i++)
+  {
+    pnm_set_channel(imd,g_img,i);
+  }
+  pnm_save(imd,PnmRawPpm,"test.pnm");
+  free(data);
+  free(freq_repr);
 }
 
 /**
  * @brief test image reconstruction from of magnitude and phase spectrum
  * @param char *name: the input image file name
  */
-void
-test_reconstruction(char* name)
+void test_reconstruction(char *name)
 {
   fprintf(stderr, "test_reconstruction: ");
   (void)name;
@@ -36,8 +47,7 @@ test_reconstruction(char* name)
  * @brief test construction of magnitude and phase images in ppm files
  * @param char* name, the input image file name
  */
-void
-test_display(char* name)
+void test_display(char *name)
 {
   fprintf(stderr, "test_display: ");
   (void)name;
@@ -52,15 +62,14 @@ test_display(char* name)
  */
 void
 
-test_add_frequencies(char* name)
+test_add_frequencies(char *name)
 {
   fprintf(stderr, "test_add_frequencies: ");
   (void)name;
   fprintf(stderr, "OK\n");
 }
 
-void
-run(char* name)
+void run(char *name)
 {
   test_forward_backward(name);
   test_reconstruction(name);
@@ -68,18 +77,17 @@ run(char* name)
   test_add_frequencies(name);
 }
 
-void 
-usage(const char *s)
+void usage(const char *s)
 {
   fprintf(stderr, "Usage: %s <ims> \n", s);
   exit(EXIT_FAILURE);
 }
 
 #define PARAM 1
-int 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  if (argc != PARAM+1) usage(argv[0]);
+  if (argc != PARAM + 1)
+    usage(argv[0]);
   run(argv[1]);
   return EXIT_SUCCESS;
 }
