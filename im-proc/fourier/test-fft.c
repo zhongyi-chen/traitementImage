@@ -8,23 +8,23 @@
 #include <math.h>
 #include <fft.h>
 #include <string.h>
+#include <stdbool.h>
 
 // concatenate the prefix with the desire name
-char *create_filename(char *prefix, char *name)
+void create_filename(char*filename, char *prefix, char *name)
 {
-  char *tmp = (char *)malloc(40 * sizeof(char));
-  char *filename = (char *)malloc(60 * sizeof(char));
-  tmp = strcpy(tmp, name);
+  char  tmp[256];
+  snprintf(tmp, sizeof(tmp), "%s",name );
   char *token = strtok(tmp, "/");
+  char *tmp2;
   // loop through the string to extract all other tokens
   while (token != NULL)
   {
-    tmp = token;
+    tmp2 = token;
     token = strtok(NULL, "/");
   }
-  strcat(filename, prefix);
-  strcat(filename, tmp);
-  return filename;
+  snprintf(filename, 256, "%s%s", prefix, tmp2);
+  
 }
 
 /**
@@ -46,15 +46,15 @@ void test_forward_backward(char *name)
   for (unsigned int i = PnmRed; i <= PnmBlue; i++)
     pnm_set_channel(imd, g_img, i);
   
-  char * filename = create_filename("FB-", name);
+  char  filename[256];
+  create_filename(filename,"FB-", name);
   pnm_save(imd, PnmRawPpm, filename);
   // memory management
-  free(ims);
+  pnm_free(ims);
   free(data);
   free(freq_repr);
   free(g_img);
-  free(imd);
-  free(filename);
+  pnm_free(imd);
   fprintf(stderr, "OK\n");
 }
 
@@ -84,17 +84,18 @@ void test_reconstruction(char *name)
   for (unsigned int i = PnmRed; i <= PnmBlue; i++)
     pnm_set_channel(imd, g_img, i);
   
-  char * filename = create_filename("FB-ASPS-", name);
+  char  filename[256];
+  create_filename(filename,"FB-ASPS-", name);
   pnm_save(imd, PnmRawPpm, filename);
 
-  free(ims);
+  pnm_free(ims);
   free(data);
   free(out);
   free(as);
   free(ps);
   free(freq_repr);
-  free(imd);
-  free(filename);
+  free(g_img);
+  pnm_free(imd);
   fprintf(stderr, "OK\n");
 }
 
@@ -153,27 +154,42 @@ void test_display(char *name)
     pnm_set_channel(imd_ps, bufferPs, i);
   }
   // save output images
-  char * as_filename = create_filename("AS-", name);
-  char * ps_filename =  create_filename("PS-", name);
+  char  as_filename[256];
+  create_filename(as_filename,"AS-", name);
+  char ps_filename[256];
+  create_filename(ps_filename,"PS-", name);
   pnm_save(imd_as, PnmRawPpm, as_filename);
   pnm_save(imd_ps, PnmRawPpm, ps_filename);
 
   // Memory management
-  free(ims);
+  pnm_free(ims);
   free(data);
   free(as);
   free(ps);
-  free(imd_as);
-  free(imd_ps);
+  pnm_free(imd_as);
+  pnm_free(imd_ps);
   free(bufferAs);
   free(bufferPs);
   free(freq_repr);
-  free(as_filename);
-  free(ps_filename);
-
   fprintf(stderr, "OK\n");
 }
 
+
+/**
+ * @brief 
+ **/ 
+bool is_color_image(pnm ims){
+   unsigned short *datar = pnm_get_channel(ims, NULL, PnmRed);
+   unsigned short *datag = pnm_get_channel(ims, NULL, PnmGreen);
+   unsigned short *datab = pnm_get_channel(ims, NULL, PnmBlue);
+   bool res = datar[0]==datag[0] && datag[0]==datab[0];
+   free(datar);
+   free(datag);
+   free(datab);
+   return !res;
+}
+
+void test_add_frequencies_color(pnm ims, int freq,char*name);
 /**
  * @brief test the modification of magnitude by adding a periodic functions
           on both vertical and horizontal axis, and 
@@ -188,12 +204,17 @@ test_add_frequencies(char *name)
   int freq = 8;
 
   pnm ims = pnm_load(name);
+
+  if(is_color_image(ims)){
+    test_add_frequencies_color(ims,freq,name);
+    return;
+  }
   int rows = pnm_get_height(ims);
   int cols = pnm_get_width(ims);
   int size = rows * cols;
   unsigned short *data = pnm_get_channel(ims, NULL, PnmRed);
 
-  unsigned short *backward_data = malloc(size * sizeof(unsigned short));
+    
   float *as = malloc(size * sizeof(float));
   float *ps = malloc(size * sizeof(float));
   fftw_complex *out = malloc(size * sizeof(fftw_complex));
@@ -220,7 +241,7 @@ test_add_frequencies(char *name)
   as[rows_center_index * cols + cols_center_index + freq * cols] = desire_amp;
    
   spectra2freq(rows, cols, as, ps, out);
-  backward_data = backward(rows, cols, out);
+  unsigned short * backward_data = backward(rows, cols, out);
 
   unsigned short *bufferAs = malloc(size * sizeof(unsigned short));
   //center sample
@@ -241,27 +262,155 @@ test_add_frequencies(char *name)
   }
 
   // save output images
-  char *imdFreq_filename = create_filename("FREQ-", name);
-  char *imdAs_filename = create_filename("FAS-", name);
+  char imdFreq_filename[256];
+  create_filename(imdFreq_filename,"FREQ-", name);
+  char imdAs_filename[256];
+  create_filename(imdAs_filename,"FAS-", name);
 
   pnm_save(imdFreq, PnmRawPpm, imdFreq_filename);
   pnm_save(imdAs, PnmRawPpm, imdAs_filename);
 
   // memory management
-  free(ims);
+  pnm_free(ims);
   free(data);
   free(backward_data);
   free(as);
   free(ps);
   free(out);
-  free(imdFreq);
-  free(imdAs);
+  pnm_free(imdFreq);
+  pnm_free(imdAs);
   free(freq_repr);
   free(bufferAs);
-  free(imdFreq_filename);
-  free(imdAs_filename);
   fprintf(stderr, "OK\n");
 }
+
+/**
+ * @brief add frequencies and color image
+ * @param char* name, the input image file name
+ * @param int freq, the frequence to be modify
+ */
+void
+test_add_frequencies_color(pnm ims,int freq,char*name)
+{
+  fprintf(stderr, "test_add_frequencies_color: ");
+  int rows = pnm_get_height(ims);
+  int cols = pnm_get_width(ims);
+  int size = rows * cols;
+   unsigned short *datar = pnm_get_channel(ims, NULL, PnmRed);
+   unsigned short *datag = pnm_get_channel(ims, NULL, PnmGreen);
+   unsigned short *datab = pnm_get_channel(ims, NULL, PnmBlue);
+
+    
+  float *as_r = malloc(size * sizeof(float));
+  float *ps_r = malloc(size * sizeof(float));    
+  float *as_g = malloc(size * sizeof(float));
+  float *ps_g = malloc(size * sizeof(float));    
+  float *as_b = malloc(size * sizeof(float));
+  float *ps_b = malloc(size * sizeof(float));
+  fftw_complex *out = malloc(size * sizeof(fftw_complex));
+  pnm imdFreq = pnm_new(cols, rows, PnmRawPpm);
+  pnm imdAs = pnm_new(cols, rows, PnmRawPpm);
+
+  fftw_complex *freq_repr_r = forward(rows, cols, datar);
+  fftw_complex *freq_repr_g = forward(rows, cols, datag);
+  fftw_complex *freq_repr_b = forward(rows, cols, datab);
+  freq2spectra(rows, cols, freq_repr_r, as_r, ps_r);
+  freq2spectra(rows, cols, freq_repr_g, as_g, ps_g);
+  freq2spectra(rows, cols, freq_repr_b, as_b, ps_b);
+
+  float amax = getMax(as_r, size);
+  float desire_amp = amax * 0.25;
+
+  // get center index for both dimensions
+  int rows_center_index = rows / 2;
+  int cols_center_index = cols / 2;
+
+  // access the frequence to be modify by shifting freq index in four directions
+  // replace with the desire amplitude for all channels 
+
+  // horizontal synmmetry left & right
+  as_r[rows_center_index * cols + cols_center_index - freq] = desire_amp;
+  as_r[rows_center_index * cols + cols_center_index + freq] = desire_amp;
+  // vertical synmmetry top & bottom
+  as_r[rows_center_index * cols + cols_center_index - freq * cols] = desire_amp;
+  as_r[rows_center_index * cols + cols_center_index + freq * cols] = desire_amp;  
+
+  // horizontal synmmetry left & right
+  as_g[rows_center_index * cols + cols_center_index - freq] = desire_amp;
+  as_g[rows_center_index * cols + cols_center_index + freq] = desire_amp;
+  // vertical synmmetry top & bottom
+  as_g[rows_center_index * cols + cols_center_index - freq * cols] = desire_amp;
+  as_g[rows_center_index * cols + cols_center_index + freq * cols] = desire_amp;  
+
+  // horizontal synmmetry left & right
+  as_b[rows_center_index * cols + cols_center_index - freq] = desire_amp;
+  as_b[rows_center_index * cols + cols_center_index + freq] = desire_amp;
+  // vertical synmmetry top & bottom
+  as_b[rows_center_index * cols + cols_center_index - freq * cols] = desire_amp;
+  as_b[rows_center_index * cols + cols_center_index + freq * cols] = desire_amp;
+   
+  spectra2freq(rows, cols, as_r, ps_r, out);
+  unsigned short * backward_data_r = backward(rows, cols, out);
+  spectra2freq(rows, cols, as_g, ps_g, out);
+  unsigned short * backward_data_g = backward(rows, cols, out);
+  spectra2freq(rows, cols, as_b, ps_b, out);
+  unsigned short * backward_data_b = backward(rows, cols, out);
+
+  unsigned short *bufferAs_r = malloc(size * sizeof(unsigned short));
+  //center sample
+  float k = 0.2;
+  for (int i = 0; i < rows; i++)
+  {
+    for (int j = 0; j < cols; j++)
+    {
+      float data_as_r = as_r[i * cols + j];
+      bufferAs_r[i * cols + j] = pow((data_as_r / amax), k) * 255;
+    }
+  }
+
+
+  pnm_set_channel(imdFreq, backward_data_r, PnmRed);
+  pnm_set_channel(imdFreq, backward_data_g, PnmGreen);
+  pnm_set_channel(imdFreq, backward_data_b, PnmBlue);
+  for (unsigned int i = PnmRed; i <= PnmBlue; i++)
+  {
+    pnm_set_channel(imdAs, bufferAs_r, i);
+  }
+
+  // save output images
+  char imdFreq_filename[256];
+  create_filename(imdFreq_filename,"FREQ-", name);
+  char imdAs_filename[256];
+  create_filename(imdAs_filename,"FAS-", name);
+
+  pnm_save(imdFreq, PnmRawPpm, imdFreq_filename);
+  pnm_save(imdAs, PnmRawPpm, imdAs_filename);
+
+  // memory management
+  pnm_free(ims);
+  free(datar);
+  free(datag);
+  free(datab);
+  free(as_r);
+  free(ps_r);
+  free(as_g);
+  free(ps_g);
+  free(as_b);
+  free(ps_b);
+  free(out);
+  pnm_free(imdFreq);
+  pnm_free(imdAs);
+  free(freq_repr_r);
+  free(freq_repr_g);
+  free(freq_repr_b);
+  free(backward_data_r);
+  free(backward_data_g);
+  free(backward_data_b);
+  free(bufferAs_r);
+  fprintf(stderr, "OK\n");
+
+}
+
 
 void run(char *name)
 {
@@ -269,6 +418,7 @@ void run(char *name)
   test_reconstruction(name);
   test_display(name);
   test_add_frequencies(name);
+  fftw_cleanup();
 }
 
 void usage(const char *s)
