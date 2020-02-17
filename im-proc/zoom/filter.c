@@ -24,7 +24,7 @@ void usage(const char *s)
 float box(float x){return (x>=-0.5 && x<0.5) ? 1 : 0;}
 
 
-float tent(float x){return (-1 <= x && x<=1) ? 1.f-fabs(x) : 0.f;}
+float tent(float x){return (-1.f <= x && x<=1.f) ? 1.f-fabsf(x) : 0.f;}
 
 float bell(float x){
     float absx = fabs(x);
@@ -77,6 +77,12 @@ float get_filter_domain(char *name){
     }
 }
 
+unsigned short normalizeColor(float color){
+    if(color <0) return 0;
+    if(color>255) return 255;
+    return (unsigned short) color;
+}
+
 
 
 void process(int factor, char * filter_name, pnm ims, char * filename)
@@ -96,56 +102,61 @@ void process(int factor, char * filter_name, pnm ims, char * filename)
     // interpolation filter in cols 
     for (int i = 0; i < rows; i++)
     {
-        for (int j = 0; j < output_cols-1; j++)
+        for (int j = 0; j < output_cols; j++)
         {
             float newj = j/(float)factor;
-            float left = fabs(newj-get_filter_domain(filter_name));
-            left = left>0 ? left : 0;
-            float right = fabs(newj + get_filter_domain(filter_name));
-            right = right < output_cols-1 ? right : output_cols-1;
+            int left = floor(newj-get_filter_domain(filter_name));
+            // left = left>0 ? left : 0;
+            int right =floor(newj + get_filter_domain(filter_name)) ;
+            // right = right < output_cols-1 ? right : output_cols-1;
             
             float S = 0;
             for (int k = left; k <=right; k++)
             {
-                
-                S+=data[ i*cols + k] * calcul_filter(filter_name, k-newj);
+                int tmpj = k;
+                //normalize k
+                if (k>=cols) 
+                    tmpj=cols-1;
+                else if(k<0)
+                    tmpj = 0;
+                S+=pnm_get_component(ims,i,tmpj,0) * calcul_filter(filter_name, k-newj);
             }
-            // printf("S in cols is %d\n",(unsigned short)S);
             output_data[i*output_cols+j] = (unsigned short) S; 
         } 
     }
 
     // interpolation filter in rows 
-    for (int j = 0; j < output_cols; j++)
+    for (int i = 0; i < output_rows; i++)
     {
-        for (int i = 0; i < output_rows-1; i++)
-        {
+        for (int j = 0; j < output_cols; j++)
+        { 
             float newi = i/(float)factor;
-            float left = fabs(newi-get_filter_domain(filter_name));
-            left = left>0 ? left : 0;
-            float right = fabs(newi + get_filter_domain(filter_name));
-            printf("right is %f\n",floor(right));
-            right = right < output_rows-1 ? right : output_rows-1;
+            float left = newi-get_filter_domain(filter_name);
+            float right = newi + get_filter_domain(filter_name);
+         
             float S = 0;
-            printf("right is %f\n",floor(right));
             for (int k = left; k <=right; k++)
             {
                 int tmpi = k;
+                //normalize k
                 if (k>=rows) 
                     tmpi=rows-1;
-                int tmpj = j/factor;
-                S+= pnm_get_component(ims,tmpi,tmpj,0) * calcul_filter(filter_name, k-newi);
+                else if (k<0)
+                    tmpi = 0;
+                // get S from previous data
+                S+= output_data[tmpi*output_cols+j] * calcul_filter(filter_name,k-newi);
             }
-            output_data[i*output_cols+j] = S; 
+
+            for (int c = PnmRed; c <=PnmBlue; c++)
+            {
+                pnm_set_component(imd, i,j, c, (unsigned short) S);
+            }
         } 
     }
 
-    
 
-    for (int c = PnmRed; c <=PnmBlue; c++)
-    {
-        pnm_set_channel(imd, output_data, c);
-    }
+
+ 
 
     pnm_save(imd, PnmRawPpm, filename);
     pnm_free(imd);
