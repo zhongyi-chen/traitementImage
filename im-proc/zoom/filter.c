@@ -83,8 +83,6 @@ unsigned short normalizeColor(float color){
     return (unsigned short) color;
 }
 
-
-
 void process(int factor, char * filter_name, pnm ims, char * filename)
 {
     int rows = pnm_get_height(ims);
@@ -106,19 +104,14 @@ void process(int factor, char * filter_name, pnm ims, char * filename)
         {
             float newj = j/(float)factor;
             int left = floor(newj-get_filter_domain(filter_name));
-            // left = left>0 ? left : 0;
+            left = left>0 ? left : 0;
             int right =floor(newj + get_filter_domain(filter_name)) ;
-            // right = right < output_cols-1 ? right : output_cols-1;
+            right = right <= output_cols-1 ? right : output_cols-1;
             
             float S = 0;
             for (int k = left; k <=right; k++)
             {
-                int tmpj = k;
-                //normalize k
-                if (k>=cols) 
-                    tmpj=cols-1;
-                else if(k<0)
-                    tmpj = 0;
+                int tmpj = (k>=cols) ? cols-1 : k;
                 S+=pnm_get_component(ims,i,tmpj,0) * calcul_filter(filter_name, k-newj);
             }
             output_data[i*output_cols+j] = (unsigned short) S; 
@@ -131,18 +124,15 @@ void process(int factor, char * filter_name, pnm ims, char * filename)
         for (int j = 0; j < output_cols; j++)
         { 
             float newi = i/(float)factor;
-            float left = newi-get_filter_domain(filter_name);
-            float right = newi + get_filter_domain(filter_name);
-         
+            float left = floor(newi-get_filter_domain(filter_name));
+            left = left>0 ? left : 0;
+            float right = floor(newi + get_filter_domain(filter_name));
+            right = right <= output_cols-1 ? right : output_cols-1;
+
             float S = 0;
             for (int k = left; k <=right; k++)
             {
-                int tmpi = k;
-                //normalize k
-                if (k>=rows) 
-                    tmpi=rows-1;
-                else if (k<0)
-                    tmpi = 0;
+                int tmpi = (k>=rows -1) ? rows-1 :k;
                 // get S from previous data
                 S+= output_data[tmpi*output_cols+j] * calcul_filter(filter_name,k-newi);
             }
