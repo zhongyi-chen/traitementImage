@@ -83,6 +83,25 @@ unsigned short normalizeColor(float color){
     return (unsigned short) color;
 }
 
+pnm flip(pnm source, int cols, int rows){
+    pnm imd = pnm_new(rows,cols,PnmRawPpm);
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            for(int c = PnmRed;c<=PnmBlue;c++){
+                unsigned short color = pnm_get_component(source,i,j,c);
+                pnm_set_component(imd,cols-j-1,i,c,color);
+            }
+        }
+
+    }
+    pnm_save(imd,PnmRawPpm,"flip.ppm");
+    return imd;
+}
+
+void interpolation(pnm source, pnm dst);
+
 void process(int factor, char * filter_name, pnm ims, char * filename)
 {
     int rows = pnm_get_height(ims);
@@ -146,8 +165,7 @@ void process(int factor, char * filter_name, pnm ims, char * filename)
 
 
 
- 
-
+    flip(imd,output_cols,output_rows);
     pnm_save(imd, PnmRawPpm, filename);
     pnm_free(imd);
     free(data);
