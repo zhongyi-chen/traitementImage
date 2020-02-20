@@ -94,7 +94,7 @@ pnm flip(pnm source, int cols, int rows,bool clock){
     return imd;
 }
 
-unsigned short normalizeColor(float S){
+unsigned short Troncature(float S){
     unsigned short tmp=S;
     if(S<0.f)
         tmp =0.f;
@@ -126,7 +126,7 @@ void interpolation(pnm source, pnm dst, int input_rows, int input_cols,int inter
             }
 
             for(int channel = PnmRed; channel<=PnmBlue;channel ++){
-                unsigned short normalizedS = normalizeColor(S[channel]);
+                unsigned short normalizedS = Troncature(S[channel]);
                 pnm_set_component(dst,i,j,channel, normalizedS);
             }
         }
