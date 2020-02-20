@@ -19,23 +19,11 @@ void usage(const char *s)
     exit(EXIT_FAILURE);
 }
 
-/**
- * 
- * 
- * 
- **/
-
-void process(int factor, pnm ims, char * filename)
-{
-    int rows = pnm_get_height(ims);
-    int cols = pnm_get_width(ims);
-
-    int output_rows = rows * factor;
-    int output_cols = cols * factor;
+void paddingChannel(int factor, pnm ims, pnm imd, int rows, int cols, int start_row, int end_row, int start_col, int end_col , int channel){
+    int output_cols = cols*factor;
+    int output_rows = rows*factor;
     int output_size = output_rows * output_cols;
-    pnm imd = pnm_new(output_cols, output_rows, PnmRawPpm);
-    unsigned short * data = pnm_get_channel(ims,NULL,PnmRed);
-
+    unsigned short * data = pnm_get_channel(ims,NULL,channel);
     fftw_complex *fft_ims = forward(rows, cols, data);
     fftw_complex *zoom_fft_ims = malloc(output_size * sizeof(fftw_complex));
 
@@ -43,11 +31,6 @@ void process(int factor, pnm ims, char * filename)
     {
         zoom_fft_ims[i] = 0;
     }
-
-    int start_row = (output_rows - rows)%2 ==0 ? (output_rows - rows)/2 : (output_rows - rows)/2 + 1;
-    int end_row = start_row + rows;
-    int start_col = (output_cols - cols)%2 ==0 ? (output_cols - cols)/2 : (output_cols - cols)/2 + 1;
-    int end_col = start_col + cols;
 
     int counter =0;
     for (int i = start_row; i <end_row; i++)
@@ -58,15 +41,33 @@ void process(int factor, pnm ims, char * filename)
             counter++;
         }
     }
-
     unsigned short *output_data = backward(output_rows, output_cols, zoom_fft_ims,factor);
-    for (int c = PnmRed; c <=PnmBlue; c++)
-        pnm_set_channel(imd, output_data, c);
+    pnm_set_channel(imd, output_data, channel);
+    free(fft_ims);
+    free(zoom_fft_ims);
+    free(data);
+}
+
+void process(int factor, pnm ims, char * filename)
+{
+    int rows = pnm_get_height(ims);
+    int cols = pnm_get_width(ims);
+
+    int output_rows = rows * factor;
+    int output_cols = cols * factor;
+    pnm imd = pnm_new(output_cols, output_rows, PnmRawPpm);
+   
+    int start_row = (output_rows - rows)%2 ==0 ? (output_rows - rows)/2 : (output_rows - rows)/2 + 1;
+    int end_row = start_row + rows;
+    int start_col = (output_cols - cols)%2 ==0 ? (output_cols - cols)/2 : (output_cols - cols)/2 + 1;
+    int end_col = start_col + cols;
+    for(int channel = PnmRed; channel<=PnmBlue;channel ++)
+        paddingChannel(factor, ims, imd, rows, cols, start_row, end_row, start_col, end_col, channel);
     
     pnm_save(imd, PnmRawPpm, filename);
-    free(imd);
-    free(data);
-    free(output_data);
+    pnm_free(imd);
+    
+    fftw_cleanup();
 }
 
 #define PARAM 3

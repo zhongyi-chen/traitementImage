@@ -77,13 +77,8 @@ float get_filter_domain(char *name){
     }
 }
 
-unsigned short normalizeColor(float color){
-    if(color <0) return 0;
-    if(color>255) return 255;
-    return (unsigned short) color;
-}
 
-pnm flip(pnm source, int cols, int rows){
+pnm flip(pnm source, int cols, int rows,bool clock){
     pnm imd = pnm_new(rows,cols,PnmRawPpm);
     for (int i = 0; i < rows; i++)
     {
@@ -91,16 +86,43 @@ pnm flip(pnm source, int cols, int rows){
         {
             for(int c = PnmRed;c<=PnmBlue;c++){
                 unsigned short color = pnm_get_component(source,i,j,c);
-                pnm_set_component(imd,cols-j-1,i,c,color);
+                (!clock) ?  pnm_set_component(imd,cols-j-1,i,c,color):  pnm_set_component(imd,j,rows-i-1,c,color);
             }
         }
 
     }
-    pnm_save(imd,PnmRawPpm,"flip.ppm");
     return imd;
 }
 
-void interpolation(pnm source, pnm dst);
+
+
+void interpolation(pnm source, pnm dst, int input_rows, int input_cols,int interpolation, char * filter_name, int factor){
+
+    float filter_domain = get_filter_domain(filter_name);
+
+    for(int i = 0; i<input_rows; i++){
+        for(int j =0; j<interpolation; j++){
+            float newj = j/(float) factor;
+            int left = floor(newj -filter_domain);
+            left = left>0 ? left : 0;
+            int right = floor(newj + filter_domain);
+            right = right <= interpolation-1 ? right : interpolation-1;
+
+          
+            float S[3]= {0,0,0};
+            for(int k = left; k<=right;k++){
+                int tmpj = (k>=input_cols) ? input_cols-1: k;
+                S[PnmRed]+=pnm_get_component(source,i,tmpj,PnmRed) * calcul_filter(filter_name, k-newj);
+                S[PnmGreen]+=pnm_get_component(source,i,tmpj,PnmGreen) * calcul_filter(filter_name, k-newj);
+                S[PnmBlue]+=pnm_get_component(source,i,tmpj,PnmBlue) * calcul_filter(filter_name, k-newj);
+            }
+
+            for(int channel = PnmRed; channel<=PnmBlue;channel ++){
+                pnm_set_component(dst,i,j,channel,(unsigned short)S[channel]);
+            }
+        }
+    }
+}
 
 void process(int factor, char * filter_name, pnm ims, char * filename)
 {
@@ -109,67 +131,21 @@ void process(int factor, char * filter_name, pnm ims, char * filename)
 
     int output_rows = rows * factor;
     int output_cols = cols * factor;
-    int output_size = output_rows * output_cols;
 
-    pnm imd = pnm_new(output_cols, output_rows, PnmRawPpm);
-    unsigned short * data = pnm_get_channel(ims,NULL,PnmRed);
+    pnm buffer = pnm_new(output_cols, output_rows, PnmRawPpm);
+    pnm imd = pnm_new(output_rows,output_cols , PnmRawPpm);
 
-    unsigned short * output_data = malloc(output_size *  sizeof(unsigned short));
+    interpolation(ims,buffer,rows,cols,output_cols,filter_name,factor);
+    pnm fliped_buffer = flip(buffer,output_cols,output_rows,false);
+    interpolation(fliped_buffer,imd,output_cols,rows,output_rows,filter_name,factor);
 
-    // interpolation filter in cols 
-    for (int i = 0; i < rows; i++)
-    {
-        for (int j = 0; j < output_cols; j++)
-        {
-            float newj = j/(float)factor;
-            int left = floor(newj-get_filter_domain(filter_name));
-            left = left>0 ? left : 0;
-            int right =floor(newj + get_filter_domain(filter_name)) ;
-            right = right <= output_cols-1 ? right : output_cols-1;
-            
-            float S = 0;
-            for (int k = left; k <=right; k++)
-            {
-                int tmpj = (k>=cols) ? cols-1 : k;
-                S+=pnm_get_component(ims,i,tmpj,0) * calcul_filter(filter_name, k-newj);
-            }
-            output_data[i*output_cols+j] = (unsigned short) S; 
-        } 
-    }
+    pnm final = flip(imd,output_rows,output_cols,true);
 
-    // interpolation filter in rows 
-    for (int i = 0; i < output_rows; i++)
-    {
-        for (int j = 0; j < output_cols; j++)
-        { 
-            float newi = i/(float)factor;
-            float left = floor(newi-get_filter_domain(filter_name));
-            left = left>0 ? left : 0;
-            float right = floor(newi + get_filter_domain(filter_name));
-            right = right <= output_cols-1 ? right : output_cols-1;
-
-            float S = 0;
-            for (int k = left; k <=right; k++)
-            {
-                int tmpi = (k>=rows -1) ? rows-1 :k;
-                // get S from previous data
-                S+= output_data[tmpi*output_cols+j] * calcul_filter(filter_name,k-newi);
-            }
-
-            for (int c = PnmRed; c <=PnmBlue; c++)
-            {
-                pnm_set_component(imd, i,j, c, (unsigned short) S);
-            }
-        } 
-    }
-
-
-
-    flip(imd,output_cols,output_rows);
-    pnm_save(imd, PnmRawPpm, filename);
+    pnm_save(final, PnmRawPpm, filename);
     pnm_free(imd);
-    free(data);
-    free(output_data);
+    pnm_free(buffer);
+    pnm_free(fliped_buffer);
+    pnm_free(final);
 }
 
 #define PARAM 4

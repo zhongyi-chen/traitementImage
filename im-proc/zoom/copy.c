@@ -17,13 +17,6 @@ void usage(const char *s)
     exit(EXIT_FAILURE);
 }
 
-
-/**
- * 
- * 
- * 
- **/
-
 void process(int factor, pnm ims, char * filename)
 {
     int rows = pnm_get_height(ims);
@@ -45,7 +38,7 @@ void process(int factor, pnm ims, char * filename)
         }
     }
     pnm_save(imd, PnmRawPpm, filename);
-    free(imd);
+    pnm_free(imd);
 }
 
 #define PARAM 3
