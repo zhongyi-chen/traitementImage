@@ -64,9 +64,8 @@ float *getMeans(float *data, int rows, int cols)
         means[c] += data[i * cols * 3 + j * 3 + c];
 
   for (int c = PnmRed; c <= PnmBlue; c++)
-  {
     means[c] /= (float)size;
-  }
+  
   return means;
 }
 
@@ -80,15 +79,6 @@ float *getStandardDeviations(float *data, float *means, int rows, int cols)
   for (int c = PnmRed; c <= PnmBlue; c++)
     standardDeviationsns[c] = sqrt(standardDeviationsns[c]);
   return standardDeviationsns;
-}
-
-unsigned short troncature(float data)
-{
-  if (data < 0)
-    return 0;
-  else if (data > 255)
-    return 255;
-  return (unsigned short)data;
 }
 
 void rgb2lms(float *rgb, float *lms, int rows, int cols)
@@ -107,8 +97,27 @@ void lms2rgb(float *lms, float *rgb, int rows, int cols)
   for (int i = 0; i < size; i++)
     lms[i] = pow(10, lms[i]);
   multiply(lms, rgb_tmp, LMS2RGB, rows, cols);
-  for (int i = 0; i < size; i++)
-    rgb[i] = troncature(rgb_tmp[i]);
+  //normalize 
+  float min[3];
+  float max[3];
+  min[PnmRed] = max[PnmRed] = rgb_tmp[PnmRed];
+  min[PnmGreen] = max[PnmGreen] = rgb_tmp[PnmGreen];
+  min[PnmBlue] = max[PnmBlue] = rgb_tmp[PnmBlue];
+
+  for (int i = 0; i < rows; i++)
+    for (int j = 0; j < cols; j++)
+      for (int c = PnmRed; c <= PnmBlue; c++){
+        float data = rgb_tmp[i * cols * 3 + j * 3 + c];
+        if(data<min[c]) min[c]=data;
+        if(max[c]<data) max[c]=data;
+      }
+
+  for (int i = 0; i < rows; i++)
+    for (int j = 0; j < cols; j++)
+      for (int c = PnmRed; c <= PnmBlue; c++){
+        float data = rgb_tmp[i * cols * 3 + j * 3 + c];
+        rgb[i * cols * 3 + j * 3 + c] =(short) (data - min[c]) *255.f /(float) (max[c] - min[c]);
+      }
 
   free(rgb_tmp);
 }
@@ -120,8 +129,8 @@ float *colorCorrection(float *labTarget, float *meansSource, float *meansTarget,
     for (int j = 0; j < cols; j++)
       for (int c = PnmRed; c <= PnmBlue; c++)
       {
-        float data = labTarget[i * cols * 3 + j * 3 + c] - meansSource[c];
-        labFinal[i * cols * 3 + j * 3 + c] = data * (dSource[c] / ((float)dTarget[c])) + meansSource[c] + meansTarget[c]*0;
+        float data = labTarget[i * cols * 3 + j * 3 + c] - meansTarget[c];
+        labFinal[i * cols * 3 + j * 3 + c] = data * (dSource[c] / ((float)dTarget[c])) +meansSource[c];
       }
   return labFinal;
 }
@@ -133,50 +142,61 @@ void process(char *ims_path, char *imt_path, char *imd)
   unsigned short *imgSourcedata = pnm_get_image(ims);
   unsigned short *imgTargetdate = pnm_get_image(imt);
 
-  int rows = pnm_get_height(ims);
-  int cols = pnm_get_width(ims);
-  int size = rows * cols * 3;
-  float *imgSource = calloc(sizeof(float), size);
-  float *imgTarget = calloc(sizeof(float), size);
-  float *imgFinal = calloc(sizeof(float), size);
-  for (int i = 0; i < size; i++)
+  int rowsSource = pnm_get_height(ims);
+  int colsSource = pnm_get_width(ims);
+  int sizeSource = rowsSource * colsSource * 3;  
+
+  int rowsTarget = pnm_get_height(imt);
+  int colsTarget = pnm_get_width(imt);
+  int sizeTarget = rowsTarget * colsTarget * 3;
+
+  float *imgSource = calloc(sizeof(float), sizeSource);
+  float *imgTarget = calloc(sizeof(float), sizeTarget);
+  float *imgFinal = calloc(sizeof(float), sizeTarget);
+  for (int i = 0; i < sizeSource; i++)
   {
     imgSource[i] = imgSourcedata[i];
-    imgTarget[i] = imgTargetdate[i];
+    
   }
 
-  float *lmsSource = calloc(sizeof(float), size);
-  float *lmsTarget = calloc(sizeof(float), size);
-  float *lmsFinal = calloc(sizeof(float), size);
-  float *labSource = calloc(sizeof(float), size);
-  float *labTarget = calloc(sizeof(float), size);
+  for (int i = 0; i < sizeTarget; i++)
+  {
+    imgTarget[i] = imgTargetdate[i];
+    
+  }
+
+  float *lmsSource = calloc(sizeof(float), sizeSource);
+  float *lmsTarget = calloc(sizeof(float), sizeTarget);
+  float *lmsFinal = calloc(sizeof(float), sizeTarget);
+  float *labSource = calloc(sizeof(float), sizeSource);
+  float *labTarget = calloc(sizeof(float), sizeTarget);
   //transfer rgb to lms
-  rgb2lms(imgSource, lmsSource, rows, cols);
-  rgb2lms(imgTarget, lmsTarget, rows, cols);
+  rgb2lms(imgSource, lmsSource, rowsSource, colsSource);
+  rgb2lms(imgTarget, lmsTarget, rowsTarget, colsTarget);
   //transfer lms to lab
-  multiply(lmsSource, labSource, LMS2LAB, rows, cols);
-  multiply(lmsTarget, labTarget, LMS2LAB, rows, cols);
+  multiply(lmsSource, labSource, LMS2LAB, rowsSource, colsSource);
+  multiply(lmsTarget, labTarget, LMS2LAB, rowsTarget, colsTarget);
   //color correction
-  float *meansSource = getMeans(labSource, rows, cols);
-  float *meansTarget = getMeans(labTarget, rows, cols);
+  float *meansSource = getMeans(labSource, rowsSource, colsSource);
+  float *meansTarget = getMeans(labTarget, rowsTarget, colsTarget);
 
-  float *dSource = getStandardDeviations(labSource, meansSource, rows, cols);
-  float *dTarget = getStandardDeviations(labTarget, meansTarget, rows, cols);
+  float *dSource = getStandardDeviations(labSource, meansSource, rowsSource, colsSource);
+  float *dTarget = getStandardDeviations(labTarget, meansTarget, rowsTarget, colsTarget);
 
-  float *labFinal = colorCorrection(labTarget, meansSource, meansTarget, dSource, dTarget, rows, cols);
+  float *labFinal = colorCorrection(labTarget, meansSource, meansTarget, dSource, dTarget, rowsTarget, colsTarget);
 
   //transfer lab to lms
-  multiply(labFinal, lmsFinal, LAB2LMS, rows, cols);
+  multiply(labFinal, lmsFinal, LAB2LMS, rowsTarget, colsTarget);
 
   //transfer lms to rgb
-  lms2rgb(lmsFinal, imgFinal, rows, cols);
+  lms2rgb(lmsFinal, imgFinal, rowsTarget, colsTarget);
   
-  pnm imf = pnm_new(cols, rows, PnmRawPpm);
-  for (int i = 0; i < rows; i++)
-    for (int j = 0; j < cols; j++)
+  pnm imf = pnm_new(colsTarget, rowsTarget, PnmRawPpm);
+  for (int i = 0; i < rowsTarget; i++)
+    for (int j = 0; j < colsTarget; j++)
       for (int c = PnmRed; c <= PnmBlue; c++)
       {
-        unsigned short val = (unsigned short)imgFinal[i * cols * 3 + j * 3 + c];
+        unsigned short val = (unsigned short)imgFinal[i * colsTarget * 3 + j * 3 + c];
         pnm_set_component(imf, i, j, c, val);
       }
   pnm_save(imf, PnmRawPpm, imd);

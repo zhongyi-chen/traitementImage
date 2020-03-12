@@ -5,7 +5,7 @@ CFLAGS   = -Wall -Wextra -Werror -pedantic -std=c99
 LDFLAGS  = -L$(ROOT)/lib 
 LDLIBS   = -lbcl -lm -lfftw3
 
-BIN= color-transfer
+BIN= color-transfer run
 
 .PHONY: all
 all: $(BIN)
