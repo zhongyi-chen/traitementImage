@@ -109,8 +109,9 @@ float computeNeighborDev(float *labTarget, int rows,int cols, int i,int j){
       }
     }
     mean/=nb_neightbor;
+    float dev = getNeighborStandardDeviation(data,mean,nb_neightbor);
     free(data);
-    return getNeighborStandardDeviation(data,mean,nb_neightbor);
+    return dev;
 }
 
 void rgb2lms(float *rgb, float *lms, int rows, int cols)
