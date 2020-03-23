@@ -21,40 +21,18 @@
 
 typedef struct swatch
 {
-  int topLeftI;
-  int topLeftJ;
-  int windowRows;
-  int windowCols;
+  int i;
+  int j;
+  int boxRows;
+  int boxCols;
 }swatch;
 
-/**
- * @brief 
- * Step 1. Transfer color from source to target swatches
- * 
- *  - Perform luminance remapping between corresponding swatches.
- * 
- *  - Jitter around 50 samples from each souce swatch.
- * 
- *  - Transfer color to target swatches.
- * 
- * Step 2. Extend colorized swatches to the rest of image 
- * 
- *  - For each grayscale pixel in target image,
- *    find a best matching pixel in a colorized swatch in the target image,
- *    base on the error distance.
- * 
- *  - Transfer color from matching pixel to grayscale pixel.
- * 
- * @param ims_path path of the source color image
- * @param imt_path path of the target greyscale image
- * @param imd path of the output image
- * @param swatchSource array of swatches for the source image
- * @param swatchTarget array of swatches for the target image
- * @param nb_swatch the number of swatches in each image
- * 
- **/
-void transferWithSwatches(char *ims_path, char *imt_path, char *imd,swatch ** swatchSource, swatch **swatchTarget,int nb_swatch);
-
+void initSwatch(swatch * s,int i, int j, int boxRows, int boxCols){
+  s->i=i;
+  s->j=j;
+  s->boxRows=boxRows;
+  s->boxCols=boxCols;
+}
 
 static float RGB2LMS[D][D] = {
     {0.3811, 0.5783, 0.0402},
@@ -109,6 +87,15 @@ float *getMeans(float *data, int rows, int cols)
   return means;
 }
 
+float getLumMeanSwatch(float * img, int topLeftI, int topLeftJ,int boxRows,int boxCols,int cols){
+  float mean =0;
+  printf("i %d j %d rows %d cols %d \n",topLeftI,topLeftJ,boxRows,boxCols);
+  for (int i = topLeftI; i <topLeftI+ boxRows; i++)
+    for (int j = topLeftJ; j <topLeftJ+ boxCols; j++)
+      mean += img[i*cols*3 + j*3];
+  return mean/(boxRows*boxCols);
+}
+
 float getStandardDeviations(float *data, float means, int rows, int cols)
 {
   float standardDeviationsns =0;
@@ -126,6 +113,17 @@ float getNeighborStandardDeviation(float *data, float mean, int size)
         standardDeviationsns += (data[i] - mean) * (data[i] - mean);
  
   return sqrt(standardDeviationsns/(float)size);
+}
+
+float getSwatchDev(float * img,int cols, float mean, swatch *s){
+  float dev =0;
+  int size = s->boxRows * s->boxCols;
+  for(int i =s->i; i<s->boxRows + s->i;i++){
+    for(int j = s->j; j< s->j + s->boxCols;j++){
+      dev += (img[i*cols*3 + j*3] -mean) *(img[i*cols*3 + j*3] -mean);
+    }
+  }
+  return sqrt(dev/(float)size);
 }
 
 float computeNeighborDev(float *labTarget, int rows,int cols, int i,int j){
@@ -201,6 +199,29 @@ void luminanceRemapping(float *labSource, float *meansSource, float *meansTarget
     }
 }
 
+void swatchLumRemapping(float * labSource, float *labTarget, int colsS, int colsT, swatch **swatchSource, swatch ** swatchTarget,int nb_swatch){
+  for (int s = 0; s < nb_swatch; s++)
+  {
+
+    
+    float meanS = getLumMeanSwatch(labSource,swatchSource[s]->i,swatchSource[s]->j,swatchSource[s]->boxRows,swatchSource[s]->boxCols,colsS);
+    float meanT = getLumMeanSwatch(labTarget,swatchTarget[s]->i,swatchTarget[s]->j,swatchTarget[s]->boxRows,swatchTarget[s]->boxCols,colsT);
+    printf("meanS %f meanT %f \n",meanS,meanT);
+    float devS = getSwatchDev(labSource,colsS,meanS,swatchSource[s]);
+    float devT = getSwatchDev(labTarget,colsT,meanT,swatchTarget[s]);
+    printf("devS %f devT %f \n",devS,devT);
+
+    for (int i = swatchSource[s]->i; i < swatchSource[s]->i + swatchSource[s]->boxRows; i++)
+    {
+      for (int j = swatchSource[s]->j; j < swatchSource[s]->j + swatchSource[s]->boxCols; j++)
+      {
+        float data = labSource[i * colsS * 3 + j * 3] - meanS;
+        labSource[i * colsS * 3 + j * 3] = data * (devT / devS) +meanT/3.3 + meanS/1.5;
+      } 
+    }
+  }
+  
+}
 
 void jitterSamples(float * labSource, float * samples, int rows, int cols){
   int sampleW[SAMPLE_SIZE] ={0};
@@ -270,6 +291,30 @@ void process(char *ims_path, char *imt_path, char *imd)
   multiply(lmsSource, labSource, LMS2LAB, rowsSource, colsSource);
   multiply(lmsTarget, labTarget, LMS2LAB, rowsTarget, colsTarget);
 
+  // swatches 
+  int nb_swatches = 3;
+  swatch **swatchsSource = malloc(sizeof(swatch*) *nb_swatches);
+  swatch **swatchsTarget = malloc(sizeof(swatch*) *nb_swatches);
+  for (int i = 0; i < nb_swatches; i++)
+  {
+    swatchsSource[i] = malloc(sizeof(swatch));
+    swatchsTarget[i] = malloc(sizeof(swatch));
+  }
+  
+  initSwatch(swatchsSource[0],42,124,140,70);
+  initSwatch(swatchsSource[1],136,300,95,73);
+  initSwatch(swatchsSource[2],287,408,131,75);
+
+  initSwatch(swatchsTarget[0],75,8,51,68);
+  initSwatch(swatchsTarget[1],12,233,122,42);
+  initSwatch(swatchsTarget[2],178,53,39,86);
+
+
+  printf("swatch %d %d %d %d \n",swatchsSource[2]->i,swatchsSource[2]->j,swatchsSource[2]->boxRows,swatchsSource[2]->boxCols);
+  // luminance remapping between corresponding swatches
+  swatchLumRemapping(labSource,labTarget,colsSource,colsTarget,swatchsSource,swatchsTarget,nb_swatches);
+
+
   // perform luminance remapping 
   float *meansSource = getMeans(labSource, rowsSource, colsSource);
   float *meansTarget = getMeans(labTarget, rowsTarget, colsTarget);
@@ -284,6 +329,7 @@ void process(char *ims_path, char *imt_path, char *imd)
 
   // find best matching source pixel and transfer color to target pixel
   for (int y = 0; y < rowsTarget; y++)
+  {
     for (int x = 0; x < colsTarget; x++)
     {
       // compute neighborhood statics for current pixel
@@ -299,8 +345,9 @@ void process(char *ims_path, char *imt_path, char *imd)
     labTarget[y*colsTarget*3 + x*3+2] = samples[tmp*3+2];
     }
     
+  }
   
-  
+
   //transfer lab to lms
   multiply(labTarget, lmsFinal, LAB2LMS, rowsTarget, colsTarget);
 

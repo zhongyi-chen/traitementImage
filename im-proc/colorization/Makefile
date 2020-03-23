@@ -1,7 +1,7 @@
 ROOT=../bcl
 
 CPPFLAGS = -I$(ROOT)/include -I. 
-CFLAGS   = -Wall -Wextra  -pedantic -std=c99 
+CFLAGS   = -Wall -Wextra -Werror -pedantic -std=c99 
 LDFLAGS  = -L$(ROOT)/lib 
 LDLIBS   = -lbcl -lm -lfftw3 
 
@@ -15,4 +15,4 @@ all: $(BIN)
 clean:
 	$(RM) *.o *.ppm
 cleanall: clean
-	$(RM) $(BIN)
+	$(RM) $(BIN) 
