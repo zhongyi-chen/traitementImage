@@ -13,8 +13,11 @@
 #include <stdlib.h>
 
 #include <bcl.h>
+#include <time.h>
 
 #define D 3
+#define SAMPLE_SIZE 3
+#define NEIGHBORHOOD_SIZE 5
 
 static float RGB2LMS[D][D] = {
     {0.3811, 0.5783, 0.0402},
@@ -69,16 +72,45 @@ float *getMeans(float *data, int rows, int cols)
   return means;
 }
 
-float *getStandardDeviations(float *data, float *means, int rows, int cols)
+float getStandardDeviations(float *data, float means, int rows, int cols)
 {
-  float *standardDeviationsns = calloc(sizeof(float), 3);
+  float standardDeviationsns =0;
   for (int i = 0; i < rows; i++)
     for (int j = 0; j < cols; j++)
-      for (int c = PnmRed; c <= PnmBlue; c++)
-        standardDeviationsns[c] += (data[i * cols * 3 + j * 3 + c] - means[c]) * (data[i * cols * 3 + j * 3 + c] - means[c]);
-  for (int c = PnmRed; c <= PnmBlue; c++)
-    standardDeviationsns[c] = sqrt(standardDeviationsns[c]/(rows*cols));
-  return standardDeviationsns;
+        standardDeviationsns += (data[i * cols * 3 + j * 3 ] - means) * (data[i * cols * 3 + j * 3] - means);
+ 
+  return sqrt(standardDeviationsns/(rows*cols));
+}
+
+float getNeighborStandardDeviation(float *data, float mean, int size)
+{
+  float standardDeviationsns =0;
+  for (int i = 0; i < size; i++)
+        standardDeviationsns += (data[i] - mean) * (data[i] - mean);
+ 
+  return sqrt(standardDeviationsns/(float)size);
+}
+
+float computeNeighborDev(float *labTarget, int rows,int cols, int i,int j){
+    // compute neighborhood statics for current pixel
+    int nb_neightbor =0;
+    float *data =calloc(sizeof(float),NEIGHBORHOOD_SIZE *NEIGHBORHOOD_SIZE);
+    int size = NEIGHBORHOOD_SIZE /2;
+    float mean =0;
+    for(int ip = 0; ip<NEIGHBORHOOD_SIZE;ip++){
+      for(int jp = 0; jp<NEIGHBORHOOD_SIZE;jp++){
+          int x = j-size +jp;
+          int y = i-size + ip;
+          if(x>=0 && x <cols && y>=0 && y<rows){
+            data[nb_neightbor]=labTarget[y*cols*3 + x*3];
+            mean+=data[nb_neightbor];
+            nb_neightbor++;
+          } 
+      }
+    }
+    mean/=nb_neightbor;
+    free(data);
+    return getNeighborStandardDeviation(data,mean,nb_neightbor);
 }
 
 void rgb2lms(float *rgb, float *lms, int rows, int cols)
@@ -116,23 +148,47 @@ void lms2rgb(float *lms, float *rgb, int rows, int cols)
     for (int j = 0; j < cols; j++)
       for (int c = PnmRed; c <= PnmBlue; c++){
         float data = rgb_tmp[i * cols * 3 + j * 3 + c];
-        rgb[i * cols * 3 + j * 3 + c] =(short) (data - min[c]) *255.f /(float) (max[c] - min[c]);
+        rgb[i * cols * 3 + j * 3 + c] =(unsigned short) (data - min[c]) *255.f /(float) (max[c] - min[c]);
       }
 
   free(rgb_tmp);
 }
 
-float *colorCorrection(float *labTarget, float *meansSource, float *meansTarget, float *dSource, float *dTarget, int rows, int cols)
+void luminanceRemapping(float *labSource, float *meansSource, float *meansTarget, float dSource, float dTarget, int rows, int cols)
 {
-  float *labFinal = calloc(sizeof(float), rows * cols * 3);
   for (int i = 0; i < rows; i++)
-    for (int j = 0; j < cols; j++)
-      for (int c = PnmRed; c <= PnmBlue; c++)
-      {
-        float data = labTarget[i * cols * 3 + j * 3 + c] - meansTarget[c];
-        labFinal[i * cols * 3 + j * 3 + c] = data * (dSource[c] / ((float)dTarget[c])) +meansSource[c];
-      }
-  return labFinal;
+    for (int j = 0; j < cols; j++){
+        float data = labSource[i * cols * 3 + j * 3] - meansSource[0];
+        labSource[i * cols * 3 + j * 3] = data * (dTarget / dSource) +meansTarget[0]/3.3 + meansSource[0]/1.5;
+    }
+}
+
+void jitterSamples(float * labSource, float * samples, int rows, int cols){
+  int sampleW[SAMPLE_SIZE] ={0};
+  int sampleH[SAMPLE_SIZE] ={0};
+  int countW =0;
+  int countH =0;
+  for (int i = 0; i < SAMPLE_SIZE; i++)
+  {
+    int rW = rand()%cols;
+    int rH = rand()%rows;
+    sampleW[countW]=rW;
+    countW++;
+    sampleH[countH]=rH;
+    countH++;
+  }
+  
+  // init samples 
+  for (int i = 0; i < SAMPLE_SIZE; i++)
+  {
+    int y = sampleH[i];
+    int x = sampleW[i];
+    float dev =computeNeighborDev(labSource,rows,cols,y,x);
+    samples[i*3] = (labSource[y*cols*3 + x*3] +dev) /2.f;
+    samples[i*3+1] = labSource[y*cols*3 + x*3 +1];
+    samples[i*3+2] = labSource[y*cols*3 + x*3 +2];
+  }
+  
 }
 
 void process(char *ims_path, char *imt_path, char *imd)
@@ -154,39 +210,62 @@ void process(char *ims_path, char *imt_path, char *imd)
   float *imgTarget = calloc(sizeof(float), sizeTarget);
   float *imgFinal = calloc(sizeof(float), sizeTarget);
   for (int i = 0; i < sizeSource; i++)
-  {
     imgSource[i] = imgSourcedata[i];
     
-  }
+  
 
   for (int i = 0; i < sizeTarget; i++)
-  {
     imgTarget[i] = imgTargetdate[i];
-    
-  }
 
   float *lmsSource = calloc(sizeof(float), sizeSource);
   float *lmsTarget = calloc(sizeof(float), sizeTarget);
   float *lmsFinal = calloc(sizeof(float), sizeTarget);
   float *labSource = calloc(sizeof(float), sizeSource);
   float *labTarget = calloc(sizeof(float), sizeTarget);
+
+  // convert source image to decorrelated lab space
   //transfer rgb to lms
   rgb2lms(imgSource, lmsSource, rowsSource, colsSource);
   rgb2lms(imgTarget, lmsTarget, rowsTarget, colsTarget);
   //transfer lms to lab
   multiply(lmsSource, labSource, LMS2LAB, rowsSource, colsSource);
   multiply(lmsTarget, labTarget, LMS2LAB, rowsTarget, colsTarget);
-  //color correction
+
+  // perform luminance remapping 
   float *meansSource = getMeans(labSource, rowsSource, colsSource);
   float *meansTarget = getMeans(labTarget, rowsTarget, colsTarget);
 
-  float *dSource = getStandardDeviations(labSource, meansSource, rowsSource, colsSource);
-  float *dTarget = getStandardDeviations(labTarget, meansTarget, rowsTarget, colsTarget);
+  float dSource = getStandardDeviations(labSource, meansSource[0], rowsSource, colsSource);
+  float dTarget = getStandardDeviations(labTarget, meansTarget[0], rowsTarget, colsTarget);
+  luminanceRemapping(labSource, meansSource, meansTarget, dSource, dTarget, rowsSource, colsSource);
+  
+  // jitter sampkers from the soucre image 
+  float * samples = calloc(sizeof(float), SAMPLE_SIZE *3);
+  jitterSamples(labSource,samples,rowsSource,colsSource);
 
-  float *labFinal = colorCorrection(labTarget, meansSource, meansTarget, dSource, dTarget, rowsTarget, colsTarget);
+  // find best matching source pixel and transfer color to target pixel
+  for (int y = 0; y < rowsTarget; y++)
+  {
+    for (int x = 0; x < colsTarget; x++)
+    {
+      // compute neighborhood statics for current pixel
+    float dev = computeNeighborDev(labTarget,rowsTarget,colsTarget,y,x);
+    float weight =(labTarget[y*colsTarget*3 + x*3]+dev)/2.f;
+    
+    // get the best sample 
+    int tmp=0;
+    for (int i = 0; i < SAMPLE_SIZE; i++)
+      if(fabs(weight-samples[i*3]) <fabs(weight-samples[tmp*3])) tmp=i;
+        
+    labTarget[y*colsTarget*3 + x*3+1] = samples[tmp*3+1];
+    labTarget[y*colsTarget*3 + x*3+2] = samples[tmp*3+2];
+    }
+    
+  }
+  
 
   //transfer lab to lms
-  multiply(labFinal, lmsFinal, LAB2LMS, rowsTarget, colsTarget);
+  multiply(labTarget, lmsFinal, LAB2LMS, rowsTarget, colsTarget);
 
   //transfer lms to rgb
   lms2rgb(lmsFinal, imgFinal, rowsTarget, colsTarget);
@@ -204,6 +283,7 @@ void process(char *ims_path, char *imt_path, char *imd)
   pnm_free(ims);
   pnm_free(imt);
   pnm_free(imf);
+  free(samples);
   free(imgSource);
   free(imgTarget);
   free(imgFinal);
@@ -212,11 +292,8 @@ void process(char *ims_path, char *imt_path, char *imd)
   free(lmsFinal);
   free(labSource);
   free(labTarget);
-  free(labFinal);
   free(meansSource);
   free(meansTarget);
-  free(dSource);
-  free(dTarget);
 }
 
 void usage(char *s)
@@ -228,6 +305,7 @@ void usage(char *s)
 #define PARAM 3
 int main(int argc, char *argv[])
 {
+  srand(time(NULL));
   if (argc != PARAM + 1)
     usage(argv[0]);
   process(argv[1], argv[2], argv[3]);
