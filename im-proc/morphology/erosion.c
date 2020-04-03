@@ -22,7 +22,7 @@ main(int argc, char* argv[])
   int cols = pnm_get_width(ims);
   pnm imd = pnm_new(cols,rows,PnmRawPpm);
 
-  process(shape, hs, ims, imd, maximum);
+  process(shape, hs, ims, imd, minimum);
   pnm_save(imd,PnmRawPpm,argv[4]);
   pnm_free(ims);
   pnm_free(imd);

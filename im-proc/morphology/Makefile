@@ -3,7 +3,7 @@ ROOT=../bcl
 CPPFLAGS = -I$(ROOT)/include -I.
 CFLAGS   = -Wall -Wextra -Werror -pedantic -std=c99 
 LDFLAGS  = -L$(ROOT)/lib 
-LDLIBS   = -lbcl -lm
+LDLIBS   = -lbcl -lm  
 
 VIEWER = pvisu
 DATA   = ../data
@@ -11,14 +11,17 @@ DATA   = ../data
 BIN=\
 	make-se\
 	labeling\
-	dilation
+	dilation\
+	erosion\
+	run
 
 .PHONY: all
 all: $(OBJ) $(BIN)
 
 morphology.o: se.o
 make-se: se.o
-dilation: morphology.o
+dilation: morphology.o se.o
+erosion: morphology.o se.o
 
 .PHONY: extract-gear
 extract-gear:
