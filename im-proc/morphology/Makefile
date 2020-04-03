@@ -13,6 +13,10 @@ BIN=\
 	labeling\
 	dilation\
 	erosion\
+	opening\
+	closing\
+	add\
+	subtract\
 	run
 
 .PHONY: all
@@ -22,6 +26,8 @@ morphology.o: se.o
 make-se: se.o
 dilation: morphology.o se.o
 erosion: morphology.o se.o
+opening: morphology.o se.o
+closing: morphology.o se.o
 
 .PHONY: extract-gear
 extract-gear:
