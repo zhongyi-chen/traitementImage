@@ -45,7 +45,7 @@ int _add(int p, int r, int *roots)
   return roots[p];
 }
 
-void process(pnm ims)
+void process(pnm ims,pnm imd, char * filename)
 {
   int w = pnm_get_width(ims);
   int h = pnm_get_height(ims);
@@ -84,6 +84,31 @@ void process(pnm ims)
   }
 
   fprintf(stderr, "labeling: %d components found\n", l);
+
+  unsigned short *componentsColorR = malloc(sizeof(unsigned short) * l);
+  unsigned short *componentsColorG = malloc(sizeof(unsigned short) * l);
+  unsigned short *componentsColorB = malloc(sizeof(unsigned short) * l);
+  srand(time(NULL));
+  for (int i = 0; i < l; i++)
+  {
+    componentsColorR[i] = rand() % 256;
+    componentsColorG[i] = rand() % 256;
+    componentsColorB[i] = rand() % 256;
+  }
+  for (int i = 0; i < h; i++)
+  {
+    for (int j = 0; j < w; j++)
+    {
+      int p = i * w + j;
+      if (roots[p] < l && roots[p] > 0)
+      {
+        pnm_set_component(imd,i,j,PnmRed,componentsColorR[roots[p]]);
+        pnm_set_component(imd,i,j,PnmGreen,componentsColorG[roots[p]]);
+        pnm_set_component(imd,i,j,PnmBlue,componentsColorB[roots[p]]);
+      }
+    }
+  }
+  pnm_save(imd,PnmRawPpm,filename);
   memory_free(roots);
   // memory_free(ps);
 }
@@ -94,13 +119,17 @@ void usage(char *s)
   exit(EXIT_FAILURE);
 }
 
-#define PARAM 1
+#define PARAM 2
 int main(int argc, char *argv[])
 {
   if (argc != PARAM + 1)
     usage(argv[0]);
   pnm pnm_ims = pnm_load(argv[1]);
-  process(pnm_ims);
+  int rows = pnm_get_height(pnm_ims);
+  int cols = pnm_get_width(pnm_ims);
+  pnm imd = pnm_new(cols,rows,PnmRawPpm);
+  process(pnm_ims,imd,argv[2]);
   pnm_free(pnm_ims);
+  pnm_free(imd);
   return EXIT_SUCCESS;
 }

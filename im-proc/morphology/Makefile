@@ -11,12 +11,15 @@ DATA   = ../data
 BIN=\
 	make-se\
 	labeling\
+	labeling-color\
 	dilation\
 	erosion\
 	opening\
 	closing\
 	add\
 	subtract\
+	binarization\
+	extract-gear\
 	run
 
 .PHONY: all
@@ -31,7 +34,10 @@ closing: morphology.o se.o
 
 .PHONY: extract-gear
 extract-gear:
-	$(VIEWER) $(DATA)/gear.ppm
+	./opening 2 10 $(DATA)/gear.ppm white_circle.ppm
+	./subtract $(DATA)/gear.ppm white_circle.ppm gear.ppm
+	./binarization 200 255 gear.ppm gear-final.ppm
+	$(VIEWER) gear-final.ppm
 
 .PHONY: morphology-mrg morphology-lex morphology-bit
 morphology-mrg: se.o
@@ -46,7 +52,8 @@ morphology-bit: se.o
 
 .PHONY: test-color
 test-color: all
-	./dilation 2 1 $(DATA)/mm-color.ppm a.ppm; #$(VIEWER) a.ppm
+	./dilation 2 4 $(DATA)/mm-color.ppm dilation-color.ppm; #$(VIEWER) dilation-color.ppm
+	./erosion 2 4 $(DATA)/mm-color.ppm erosion-color.ppm; #$(VIEWER) erosion-color.ppm
 
 .PHONY: clean cleanall
 clean:

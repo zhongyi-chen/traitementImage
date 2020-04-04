@@ -44,7 +44,7 @@ process(int s,
             //center sharp with origin
             int new_i = i + shape_i - hs;
             int new_j = j + shape_j - hs;
-            if (new_i >= 0 && new_i < cols && new_j >= 0 && new_j < rows){
+            if (new_i >= 0 && new_i < rows && new_j >= 0 && new_j < cols){
               unsigned short newPixel = pnm_get_component(ims,new_i,new_j,0);
               pf(&newPixel, &origin);
             }
