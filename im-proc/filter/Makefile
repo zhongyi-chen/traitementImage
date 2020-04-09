@@ -6,6 +6,7 @@ LDFLAGS  = -L$(ROOT)/lib
 LDLIBS   = -lm -lfftw3 -lbcl
 
 BIN=heat-equation\
+	anisotropic-diffusion\
 	butterworth
 
 .PHONY=all
