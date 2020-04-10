@@ -8,6 +8,7 @@ LDLIBS   = -lm -lfftw3 -lbcl
 BIN=heat-equation\
 	anisotropic-diffusion\
 	median\
+	bilateral\
 	butterworth
 
 .PHONY=all

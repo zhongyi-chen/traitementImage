@@ -69,8 +69,8 @@ void process(int n, char *source, char *filename)
       for (int j = 0; j < cols; j++)
       {
         int index = i * cols + j;
-        float p1 = i==0 ? 0 : gradient_1[index] - gradient_1[(i-1)*cols +j];
-        float p2 = j==0 ? 0 : gradient_2[index] - gradient_2[i*cols+j-1];
+        float p1 = i == 0 ? 0 : gradient_1[index] - gradient_1[(i - 1) * cols + j];
+        float p2 = j == 0 ? 0 : gradient_2[index] - gradient_2[i * cols + j - 1];
         tmp[i * cols + j] = p1 + p2;
       }
     }
@@ -99,6 +99,8 @@ void process(int n, char *source, char *filename)
   free(data);
   free(imsBuffer);
   free(tmp);
+  free(gradient_1);
+  free(gradient_2);
 }
 
 #define PARAM 5
