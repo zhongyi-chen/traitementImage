@@ -9,6 +9,7 @@ BIN=heat-equation\
 	anisotropic-diffusion\
 	median\
 	bilateral\
+	nlmeans\
 	butterworth
 
 .PHONY=all

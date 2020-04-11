@@ -15,9 +15,13 @@
 # valgrind ./median 3 ../data/barbara-impulse.ppm median-3.ppm
 
 
-./bilateral 3 30 ../data/barbara.ppm bilateral-3-30.ppm
-./bilateral 3 100 ../data/barbara.ppm bilateral-3-100.ppm
-./bilateral 10 30 ../data/barbara.ppm bilateral-10-30.ppm
-./bilateral 10 100 ../data/barbara.ppm bilateral-10-100.ppm
+# ./bilateral 3 30 ../data/barbara.ppm bilateral-3-30.ppm
+# ./bilateral 3 100 ../data/barbara.ppm bilateral-3-100.ppm
+# ./bilateral 10 30 ../data/barbara.ppm bilateral-10-30.ppm
+# ./bilateral 10 100 ../data/barbara.ppm bilateral-10-100.ppm
 # valgrind ./bilateral 10 100 ../data/barbara.ppm bilateral-10-100.ppm
+
+./nlmeans 5 ../data/barbara.ppm nlmeans-5.ppm
+./nlmeans 10 ../data/barbara.ppm nlmeans-10.ppm
+./nlmeans 10 ../data/barbara-gaussian-10.ppm nlmeans-gau10-10.ppm
 pvisu *.ppm
