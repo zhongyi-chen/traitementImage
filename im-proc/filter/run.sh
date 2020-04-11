@@ -21,7 +21,13 @@
 # ./bilateral 10 100 ../data/barbara.ppm bilateral-10-100.ppm
 # valgrind ./bilateral 10 100 ../data/barbara.ppm bilateral-10-100.ppm
 
-./nlmeans 5 ../data/barbara.ppm nlmeans-5.ppm
-./nlmeans 10 ../data/barbara.ppm nlmeans-10.ppm
-./nlmeans 10 ../data/barbara-gaussian-10.ppm nlmeans-gau10-10.ppm
+# ./nlmeans 5 ../data/barbara.ppm nlmeans-5.ppm
+# ./nlmeans 10 ../data/barbara.ppm nlmeans-10.ppm
+# ./nlmeans 10 ../data/barbara-gaussian-10.ppm nlmeans-gau10-10.ppm
+
+./butterworth ../data/lena-gray.ppm lp.ppm lp 32 2 0 0 0
+./butterworth ../data/lena-gray.ppm hp.ppm hp 32 2 0 0 0
+./butterworth ../data/lena-gray.ppm br.ppm br 128 2 64 0 0
+./butterworth ../data/lena-gray.ppm bp.ppm bp 64 2 64 0 0
+./butterworth ../data/lena-sin.ppm no.ppm no 1 2 0 0 8
 pvisu *.ppm
