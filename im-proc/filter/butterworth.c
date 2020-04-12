@@ -55,11 +55,11 @@ float bandpass(int u, int v, int d0, int n, int w, int u0, int v0)
 float notch(int u, int v, int d0, int n, int w, int u0, int v0)
 {
   (void)w;
+
   double d1 = dist(u - u0, v - v0);
   double d2 = dist(u + u0, v + v0);
-  double base = (d0 * d0) / (d1 * d2);
-  float res = 1.f / (1 + pow(base, 2*n));
-  printf("notch %f\n", base);
+  double base = (d0 * d0) /(d1 * d2);
+  float res = 1.f / (1 + pow(base,  2*n));
   return res;
 }
 
@@ -67,7 +67,6 @@ void process(char *inp, char *out,
              int d0, int nx2, int ww, int u0, int v0,
              float (*apply)(int, int, int, int, int, int, int))
 {
-
   pnm ims = pnm_load(inp);
   int rows = pnm_get_height(ims);
   int cols = pnm_get_width(ims);
@@ -88,8 +87,8 @@ void process(char *inp, char *out,
   {
     for (int j = 0; j < cols; j++)
     {
-      int u = i - rows_center_index;
-      int v = j - cols_center_index;
+      int u = j - cols_center_index;
+      int v = i - rows_center_index;
       as[i * cols + j] *= (*apply)(u, v, d0, nx2, ww, u0, v0);
     }
   }

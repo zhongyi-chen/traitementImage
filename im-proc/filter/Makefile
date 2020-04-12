@@ -1,7 +1,7 @@
 ROOT=../bcl
 
 CPPFLAGS = -I. -I$(ROOT)/include 
-CFLAGS   = -Wall -Wextra  -pedantic -std=c99 
+CFLAGS   = -Wall -Wextra -Werror -pedantic -std=c99 
 LDFLAGS  = -L$(ROOT)/lib
 LDLIBS   = -lm -lfftw3 -lbcl
 
