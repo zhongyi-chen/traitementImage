@@ -17,16 +17,12 @@ float normalizedDist(int p[], int q[], pnm ims, int rows, int cols)
             int new_qi = q[0] + u;
             int new_pj = p[1] + v;
             int new_qj = q[1] + v;
-            // new_pi = new_pi >= 0 && new_pi ? new_pi : p[0];
-            // new_qi = new_qi >= 0 && new_qi ? new_qi : q[0];
-            // new_pj = new_pj >= 0 && new_pj ? new_pj : p[1];
-            // new_qj = new_qj >= 0 && new_qj ? new_qj : q[1];
             bool check_p = new_pi >= 0 && new_pi < rows && new_pj >= 0 && new_pj < cols;
             bool check_q = new_qi >= 0 && new_qi < rows && new_qj >= 0 && new_qj < cols;
             if (check_p && check_q)
             {
-                int data_p = check_p ? pnm_get_component(ims, new_pi, new_pj, 0) : 0;
-                int data_q = check_q ? pnm_get_component(ims, new_qi, new_qj, 0) : 0;
+                int data_p = pnm_get_component(ims, new_pi, new_pj, 0);
+                int data_q = pnm_get_component(ims, new_qi, new_qj, 0);
                 int data = data_p - data_q;
                 dist += data * data;
                 n++;
@@ -71,7 +67,7 @@ void process(int sigma, char *source, char *filename)
                         int p[2] = {i, j};
                         int q[2] = {new_i, new_j};
                         float k = normalizedDist(p, q, ims, rows, cols);
-                        float weight = exp(-k / squared_s2);
+                        float weight = exp(-k / (2*squared_s2));
                         Cp += weight;
                         weights += weight * data[new_i * cols + new_j];
                     }
